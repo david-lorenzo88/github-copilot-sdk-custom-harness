@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FinanceClaw.MarketMcp/FinanceClaw.MarketMcp.csproj" />
+    <Project Path="src/FinanceClaw/FinanceClaw.csproj" />
+  </Folder>
+</Solution>

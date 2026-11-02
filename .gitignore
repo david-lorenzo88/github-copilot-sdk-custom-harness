@@ -480,3 +480,8 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Finance Claw demo output
+workspace/audit.log
+workspace/reports/*.md
+workspace/confirmations/*.txt

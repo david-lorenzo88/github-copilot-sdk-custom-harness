@@ -1,0 +1,6 @@
+**/bin
+**/obj
+.git
+workspace/audit.log
+workspace/reports/*.md
+workspace/confirmations/*.txt
