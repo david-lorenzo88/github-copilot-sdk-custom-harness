@@ -14,7 +14,7 @@ Tú pones las herramientas, las reglas y la experiencia; Copilot pone el bucle a
 - .NET 10 SDK
 - Python 3 (lo usan los scripts de las skills)
 - Una cuenta con GitHub Copilot. El paquete NuGet incluye el runtime de Copilot, pero no inicia sesión por ti:
-  - inicia sesión una vez con [Copilot CLI](https://github.com/github/copilot-cli) (`copilot login`), **o**
+  - inicia sesión una vez con [Copilot CLI](https://github.com/github/copilot-cli) (`brew install --cask copilot-cli` y luego `copilot login`), **o**
   - exporta `COPILOT_GITHUB_TOKEN` con un fine-grained PAT con el permiso *Copilot Requests*.
 - Opcional, para el paso 7: un deployment de Microsoft Foundry.
 
@@ -82,7 +82,9 @@ docker run -it --rm -e COPILOT_GITHUB_TOKEN=$COPILOT_GITHUB_TOKEN -v claw-sessio
 ## Antes de llevarlo a producción
 
 - **Suscripción y facturación.** Con autenticación de GitHub, cada sesión consume la suscripción de Copilot del usuario o de la organización (peticiones premium según el modelo). Con BYOK, la inferencia se factura en tu proveedor.
-- **BYOK y credenciales.** En la versión 1.0.28 del SDK, `ProviderConfig` admite `ApiKey`, `BearerToken` y `BearerTokenProvider`, un callback que se llama en cada petición y sirve para tokens de Entra ID o de identidad administrada (el paso 7 lo usa con `DefaultAzureCredential`). Revisa este punto contra la versión que enseñes, porque cambia rápido.
+- **Versiones.** El proyecto fija `GitHub.Copilot.SDK` 1.0.25. `Microsoft.Agents.AI.GitHub.Copilot` 1.27.0 está compilado contra una versión del SDK que todavía tenía `SessionConfigBase.RemoteSession`. Esa propiedad desaparece en la 1.0.26, y con un SDK más nuevo el paso 8 falla en el segundo turno con `MissingMethodException`. Sube las dos versiones a la vez.
+- **Políticas de Copilot.** El SDK respeta las mismas políticas que Copilot CLI. Si tu organización desactiva Copilot CLI o los servidores MCP de terceros, tu app tampoco puede usarlos (error 403 "not authorized to use this Copilot feature"). Si cambias de plan, vuelve a iniciar sesión para refrescar el token.
+- **BYOK y credenciales.** Desde la versión 1.0.25 del SDK, `ProviderConfig` admite `ApiKey`, `BearerToken` y `BearerTokenProvider`, un callback que se llama en cada petición y sirve para tokens de Entra ID o de identidad administrada (el paso 7 lo usa con `DefaultAzureCredential`). Revisa este punto contra la versión que enseñes, porque cambia rápido.
 - **Contenedor.** Las herramientas integradas trabajan sobre el sistema de ficheros y la shell del proceso. Los permisos y los hooks son tu política, pero el aislamiento real lo da el contenedor.
 - **APIs experimentales.** Varias APIs (por ejemplo `PermissionDecision` y `BearerTokenProvider`) llevan el diagnóstico `GHCP001`. El proyecto lo suprime en el `.csproj`.
 

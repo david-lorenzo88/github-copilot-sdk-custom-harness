@@ -62,6 +62,9 @@ public static class ConsoleChat
             case SessionCompactionCompleteEvent done:
                 Ui.Info($"  ⟳ compactado: {done.Data.PreCompactionTokens} → {done.Data.PostCompactionTokens} tokens");
                 break;
+            case SessionWarningEvent warning:
+                Ui.Info($"\n  ⚠ {warning.Data.Message}");
+                break;
             case SessionErrorEvent error:
                 Ui.Error(error.Data.Message);
                 break;

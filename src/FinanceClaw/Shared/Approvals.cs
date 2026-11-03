@@ -35,6 +35,8 @@ public static class Approvals
                     ? PermissionDecision.ApproveOnce()
                     : PermissionDecision.Reject("The user declined the file change."),
 
+            PermissionRequestShell shell when IsTrustedCommand(shell.FullCommandText)
+                => PermissionDecision.ApproveOnce(),
             PermissionRequestShell shell
                 => Ui.Confirm($"¿Ejecutar `{shell.FullCommandText}`?")
                     ? PermissionDecision.ApproveOnce()
@@ -62,6 +64,16 @@ public static class Approvals
         return Ui.Confirm("¿Aprobar la operación?")
             ? PermissionDecision.ApproveOnce()
             : PermissionDecision.Reject("The user rejected the trade.");
+    }
+
+    /// <summary>Skill scripts we ship, and plain read-only commands with no chaining or redirection.</summary>
+    private static bool IsTrustedCommand(string? command)
+    {
+        if (string.IsNullOrWhiteSpace(command) || command.IndexOfAny([';', '&', '|', '>', '<', '`', '$']) >= 0)
+            return false;
+
+        return command.StartsWith($"python3 {Paths.Skills}{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+               || command.Split(' ')[0] is "cat" or "head" or "tail" or "ls" or "wc";
     }
 
     public static bool IsInside(string? path, string folder) =>
