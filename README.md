@@ -37,6 +37,7 @@ src/FinanceClaw/
   Shared/ConsoleChat.cs            REPL y eventos (tools, skills, sub-agentes, compactación)
   Steps/Step01..Step08             un fichero por paso; cada paso extiende la configuración del anterior
 src/FinanceClaw.MarketMcp/         servidor MCP stdio (noticias, perfil de empresa, divisas)
+src/FinanceClaw.Web/               la misma demo en el navegador (ASP.NET Core + eventos en directo)
 skills/valuation, skills/risk-scoring   SKILL.md + references + script Python
 workspace/                         directorio de trabajo del agente (portfolio.csv, reports/, confirmations/)
 Dockerfile                         el claw en un contenedor
@@ -69,6 +70,24 @@ export FOUNDRY_API_KEY="..."          # o bien:
 export FOUNDRY_USE_ENTRA=true         # token por petición con DefaultAzureCredential (az login, identidad administrada…)
 dotnet run --project src/FinanceClaw -- 7
 ```
+
+## Interfaz web
+
+La misma demo, en el navegador y con estética neón. Cada paso usa exactamente la configuración de la versión de consola.
+
+```bash
+dotnet run --project src/FinanceClaw.Web
+```
+
+Abre http://localhost:5199. Las teclas `1`–`8` cambian de paso, y `S` / `N` responden a las aprobaciones.
+
+- **Conversación en directo:** texto en streaming y herramientas por colores (tu código, integradas, MCP), skills y sub-agentes.
+- **Aprobaciones en un diálogo:** ticket de operación, comando o diff del fichero. Sin respuesta en 5 minutos se rechaza.
+- **Hooks visibles:** cada bloqueo se ve en pantalla y queda en la pestaña Actividad.
+- **Contexto de cada paso:** concepto, por qué importa, en qué fijarse, APIs, el código real del paso y la cartera.
+- **Medidor de contexto:** tokens en uso y animación cuando se compacta.
+
+El paso 7 lee los ajustes de Foundry del fichero `.env` de la raíz. El servidor solo escucha en `localhost` y rechaza peticiones de otros orígenes, porque quien llegue a él puede aprobar operaciones y comandos.
 
 ## En un contenedor
 

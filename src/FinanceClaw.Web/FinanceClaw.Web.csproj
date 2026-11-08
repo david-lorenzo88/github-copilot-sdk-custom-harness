@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- GHCP001: the Copilot SDK marks permission decisions, BYOK token providers and other APIs as experimental. -->
+    <NoWarn>$(NoWarn);GHCP001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Direct reference: the package's build targets, which fetch the Copilot runtime, don't flow through project references. -->
+    <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.25" />
+    <ProjectReference Include="..\FinanceClaw\FinanceClaw.csproj" />
+    <!-- Built alongside so step 5 can launch it; nothing here links against it. -->
+    <ProjectReference Include="..\FinanceClaw.MarketMcp\FinanceClaw.MarketMcp.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>
