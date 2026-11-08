@@ -18,7 +18,7 @@ COPY --from=build /out/mcp ./mcp
 COPY skills ./skills
 COPY workspace ./workspace
 
-RUN useradd --create-home claw && chown -R claw:claw /claw
+RUN useradd --create-home claw && mkdir -p /home/claw/.copilot && chown -R claw:claw /claw /home/claw/.copilot
 USER claw
 
 ENV CLAW_ROOT=/claw \

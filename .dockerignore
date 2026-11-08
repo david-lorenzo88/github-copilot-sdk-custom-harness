@@ -4,3 +4,4 @@
 workspace/audit.log
 workspace/reports/*.md
 workspace/confirmations/*.txt
+.env
