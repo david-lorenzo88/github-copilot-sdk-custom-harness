@@ -103,6 +103,15 @@ h1, h2, h3, h4 { font-family: var(--display); margin: 0; }
 .hud-label b { color: var(--text); font-family: var(--mono); font-weight: 400; text-transform: none; letter-spacing: 0; }
 .hud-value { font: 700 14px var(--display); color: var(--amber); white-space: nowrap; max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
 .gauge-wrap { width: 150px; }
+.lang-switch { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.lang-switch button {
+  font: 700 12px var(--display); letter-spacing: .08em; padding: 6px 10px; border: 0; cursor: pointer;
+  background: transparent; color: var(--muted); transition: color .2s, background .2s, box-shadow .2s;
+}
+.lang-switch button + button { border-left: 1px solid var(--line); }
+.lang-switch button:hover { color: var(--text); }
+.lang-switch button[aria-pressed="true"] { color: #07060f; background: var(--cyan); box-shadow: 0 0 14px var(--cyan); }
+.lang-switch button:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
 .gauge { height: 8px; margin-top: 4px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: rgba(0, 0, 0, .4); position: relative; }
 .gauge span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--lime)); box-shadow: 0 0 12px var(--cyan); transition: width .7s var(--ease); }
 .gauge.hot span { background: linear-gradient(90deg, var(--amber), var(--magenta)); box-shadow: 0 0 12px var(--magenta); }

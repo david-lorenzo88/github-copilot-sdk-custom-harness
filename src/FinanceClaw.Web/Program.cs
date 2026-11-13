@@ -31,7 +31,7 @@ app.Use(async (context, next) =>
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.MapGet("/api/steps", () => StepCatalog.All.Select(StepCatalog.ToClient));
+app.MapGet("/api/steps", (string? lang) => StepCatalog.For(lang).Select(StepCatalog.ToClient));
 
 app.MapGet("/api/portfolio", () =>
 {

@@ -40,6 +40,9 @@ public static class StepCatalog
         _ => throw new ArgumentOutOfRangeException(nameof(step)),
     };
 
+    /// <summary>The catalog in the interface's language: "en" for English, Spanish otherwise.</summary>
+    public static StepDefinition[] For(string? language) => language == "en" ? English : All;
+
     public static object ToClient(StepDefinition step)
     {
         var path = Path.Combine(Paths.Root, "src", "FinanceClaw", "Steps", step.SourceFile);
@@ -140,6 +143,90 @@ public static class StepCatalog
             ["AsAIAgent", "AIAgent", "AgentSession", "RunStreamingAsync"],
             "Microsoft.Agents.AI.GitHub.Copilot 1.27.0 exige GitHub.Copilot.SDK 1.0.25 o anterior.",
             [new("Cartera", "¿Cuánto vale mi cartera?"), new("Dos turnos", "¿A cuánto está AAPL? Y después dime su perfil de empresa.")],
+            []),
+    ];
+
+    /// <summary>The same steps in English, for the interface's language selector.</summary>
+    public static readonly StepDefinition[] English =
+    [
+        new(1, "Hello, Copilot engine", "One NuGet package, one agentic loop",
+            "Step01_Hello.cs",
+            "CopilotClient starts the Copilot runtime that ships inside the package and talks to it over stdio. Each session is an agentic conversation: you send a message and listen to events.",
+            "No server to deploy and no loop to write. The same engine as Copilot CLI lives inside your process.",
+            ["Text streams in, event by event.", "SystemMessage in Append mode adds your rules without removing Copilot's.", "Every tool is denied in this step."],
+            ["CopilotClient", "CreateSessionAsync", "SystemMessageMode.Append", "AssistantMessageDeltaEvent"],
+            "Authentication: the signed-in user locally, a token on a server or in a container.",
+            [new("Introduction", "What can you do for me?"), new("Test the limit", "List the files in this directory.")],
+            []),
+
+        new(2, "Custom tools", "Your code, called by the model",
+            "Step02_CustomTools.cs",
+            "AIFunctionFactory turns a C# method into a tool: the schema comes from the signature and the Description attributes. The runtime calls back into your process when the model invokes it.",
+            "Reading quotes runs without asking. Buying goes through OnPermissionRequest and waits for a person.",
+            ["get_stock_price has SkipPermission and asks nothing.", "place_trade opens the approval dialog.", "If you reject it, the model gets the reason and explains it to you."],
+            ["AIFunctionFactory.Create", "CopilotTool.DefineTool", "SkipPermission", "OnPermissionRequest", "PermissionRequestCustomTool"],
+            "Any tool that changes something should ask for approval or validate on its own.",
+            [new("Quote", "What's NVDA trading at?"), new("Trade", "What's MSFT trading at? Buy 2 shares.")],
+            []),
+
+        new(3, "Your portfolio in files", "Permissions and hooks on every action",
+            "Step03_FilesPermissionsHooks.cs",
+            "Copilot's built-in tools (view, edit, create, bash) work on workspace/. There are two layers of control: the permission decides whether something may run, and hooks apply policy and auditing around it.",
+            "Your app decides per request type. The model cannot skip a hook: portfolio.csv only changes through place_trade.",
+            ["Reading is automatic; writing asks for confirmation and shows the diff.", "The OnPreToolUse hook denies editing portfolio.csv.", "OnUserPromptSubmitted blocks the request before a turn is spent.", "OnPostToolUse writes every action to audit.log."],
+            ["WorkingDirectory", "OnPermissionRequest", "SessionHooks", "OnPreToolUse", "OnPostToolUse", "OnUserPromptSubmitted"],
+            "Permissions and hooks are your policy, but real isolation comes from the container.",
+            [new("Report", "Read my portfolio and write a very short summary in reports/summary.md"), new("Hook: file", "Add 100 TSLA shares to portfolio.csv by editing the file directly, without using place_trade"), new("Hook: prompt", "Give me insider information about AAPL")],
+            []),
+
+        new(4, "Skills and agents", "Knowledge on demand, specialists with limits",
+            "Step04_SkillsAndAgents.cs",
+            "A skill is a folder with a SKILL.md, references and scripts that the agent loads only when it needs them. A custom agent has its own prompt and a closed set of tools.",
+            "Context stays small and each specialist can only do its own job. The researcher cannot trade or write files.",
+            ["The skill shows up when the model decides to use it.", "The Python script is approved automatically because it is ours.", "The sub-agent runs with its own tool list.", "OnSubagentStart injects extra context into it."],
+            ["SkillDirectories", "SKILL.md", "CustomAgents", "CustomAgentConfig.Tools", "OnSubagentStart"],
+            "Review skills like code: they include instructions and scripts that run.",
+            [new("Skill: valuation", "How much is my portfolio worth?"), new("Skill: risk", "How risky is my portfolio?"), new("Sub-agent", "Use the ticker-researcher to analyze MSFT")],
+            []),
+
+        new(5, "MCP servers", "External data over a standard protocol",
+            "Step05_Mcp.cs",
+            "FinanceClaw.MarketMcp is an MCP server in .NET that Copilot starts as a child process. Its tools show up as market-get_market_news, market-get_company_profile and market-convert_currency.",
+            "The server marks its tools as read-only, and our policy uses that flag to skip the prompt. The researcher gets them too.",
+            ["MCP tools show in green in the conversation.", "No approval is asked because they are ReadOnly.", "The naming rule is <server>-<tool>."],
+            ["McpServers", "McpStdioServerConfig", "PermissionRequestMcp", "[McpServerTool(ReadOnly = true)]"],
+            "Your organization's Copilot policies apply too: if they turn off third-party MCP servers, your app can't use them either.",
+            [new("News", "Latest NVDA news and its company profile"), new("Currencies", "How much is my portfolio worth in euros?"), new("Research", "Use the ticker-researcher to analyze NVDA with news")],
+            []),
+
+        new(SessionsStep, "Sessions that carry on", "Save, resume and compact",
+            "Step06_Sessions.cs",
+            "The runtime saves every session to disk. ResumeSessionAsync brings it back, but tools, hooks and handlers live in your process, so you pass them again. Infinite sessions compact the context in the background.",
+            "A conversation can last for days without losing the thread or running out of context window.",
+            ["Create a session, tell it something, and come back to this step to resume it.", "The context gauge in the header shows the tokens in use.", "The compaction threshold is low on purpose: 50%."],
+            ["SessionId", "ListSessionsAsync", "ResumeSessionAsync", "InfiniteSessionConfig", "SessionCompactionCompleteEvent"],
+            "Mount a volume on ~/.copilot if you run in a container, or sessions are lost.",
+            [new("Something to remember", "Remember: my favorite ticker is NVDA."), new("Check memory", "What is my favorite ticker?")],
+            []),
+
+        new(ByokStep, "BYOK with Microsoft Foundry", "Copilot's engine, your model",
+            "Step07_ByokFoundry.cs",
+            "ProviderConfig sends inference to your Foundry deployment. Everything else stays the same: the agentic loop, tools, permissions, hooks, skills and MCP are still the Copilot SDK.",
+            "You control where data is processed, and your provider bills the inference. Besides an API key, the SDK accepts a BearerTokenProvider for Entra ID tokens.",
+            ["The configuration is step 5's plus a ProviderConfig.", "The header shows your deployment's model.", "With FOUNDRY_USE_ENTRA=true no key is needed."],
+            ["ProviderConfig", "WireModel", "ApiKey", "BearerTokenProvider", "DefaultAzureCredential"],
+            "BearerTokenProvider is experimental (GHCP001). Check it against the SDK version you use.",
+            [new("Quote", "What's MSFT trading at? Answer in one line."), new("Risk", "How risky is my portfolio?")],
+            ["FOUNDRY_OPENAI_ENDPOINT", "FOUNDRY_DEPLOYMENT"]),
+
+        new(AgentFrameworkStep, "Microsoft Agent Framework", "The same agent, as an AIAgent",
+            "Step08_AgentFramework.cs",
+            "AsAIAgent wraps the Copilot session in an AIAgent. Copilot still runs the loop, but the agent now fits anything that speaks Agent Framework, such as workflows or hosting.",
+            "You don't have to choose: use Copilot's harness where it fits and compose with Agent Framework around it.",
+            ["Text arrives through RunStreamingAsync, not session events.", "The configuration is exactly step 5's.", "The wrapper lags behind the SDK: pin the versions together."],
+            ["AsAIAgent", "AIAgent", "AgentSession", "RunStreamingAsync"],
+            "Microsoft.Agents.AI.GitHub.Copilot 1.27.0 requires GitHub.Copilot.SDK 1.0.25 or earlier.",
+            [new("Portfolio", "How much is my portfolio worth?"), new("Two turns", "What's AAPL trading at? Then tell me its company profile.")],
             []),
     ];
 }

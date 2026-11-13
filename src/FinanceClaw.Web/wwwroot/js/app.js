@@ -13,11 +13,10 @@ const icons = {
 };
 const icon = (name) => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${icons[name]}</svg>`;
 
-const layers = ["Bucle agéntico", "Herramientas", "Permisos y hooks", "Skills y agentes", "MCP", "Sesiones", "Tu modelo · BYOK", "Agent Framework"];
 const activeLayers = { 1: [0], 2: [0, 1], 3: [0, 1, 2], 4: [0, 1, 2, 3], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5], 7: [0, 1, 2, 3, 4, 6], 8: [0, 1, 2, 3, 4, 7] };
 const customTools = new Set(["get_stock_price", "place_trade"]);
-const kindLabels = { custom: "tu código", builtin: "integrada", mcp: "MCP" };
-const approvalLabels = { trade: "Operación", write: "Escritura de fichero", shell: "Comando de shell", mcp: "Herramienta MCP" };
+const kindLabel = (kind) => t(`kind.${kind}`);
+const approvalLabel = (kind) => t(`approval.kind.${kind}`);
 
 const state = {
   steps: [],
@@ -34,12 +33,12 @@ const state = {
   selection: 0,
 };
 
-const money = (value) => value.toLocaleString("es-ES", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+const money = (value) => value.toLocaleString(locale(), { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 
 async function api(path, options) {
   const response = await fetch(path, options);
   const body = response.status === 202 || response.headers.get("content-length") === "0" ? null : await response.json().catch(() => null);
-  if (!response.ok) throw new Error(body?.error ?? `Error ${response.status}`);
+  if (!response.ok) throw new Error(fromServer(body?.error) ?? `Error ${response.status}`);
   return body;
 }
 const post = (path, body) => api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
@@ -69,9 +68,14 @@ function renderRail() {
       <span class="node">${step.number}</span>
       <span class="rail-text"><b>${escapeHtml(step.title)}</b><small>${escapeHtml(step.tagline)}</small></span>
     </button></li>`).join("");
-  $("#rail").addEventListener("click", (e) => {
-    const button = e.target.closest("button[data-step]");
-    if (button) selectStep(Number(button.dataset.step));
+  markRail(state.step?.number);
+}
+
+function markRail(number) {
+  document.querySelectorAll("#rail button").forEach((b) => {
+    const n = Number(b.dataset.step);
+    b.classList.toggle("active", n === number);
+    b.classList.toggle("done", n < number);
   });
 }
 
@@ -84,16 +88,11 @@ async function selectStep(number) {
   state.step = step;
   history.replaceState(null, "", `#${number}`);
 
-  document.querySelectorAll("#rail button").forEach((b) => {
-    const n = Number(b.dataset.step);
-    b.classList.toggle("active", n === number);
-    b.classList.toggle("done", n < number);
-  });
+  markRail(number);
   $("#rail-progress").style.setProperty("--progress", (number - 1) / (state.steps.length - 1));
   replay($("#stage"), "warp");
 
-  $("#chat-step").textContent = `PASO ${String(number).padStart(2, "0")}`;
-  $("#chat-title").textContent = step.title;
+  renderStepHeader(step);
   $("#engine").textContent = number === 7 ? "Foundry · BYOK" : number === 8 ? "Agent Framework" : "GitHub Copilot";
   $("#model").textContent = "—";
   setSession("");
@@ -106,7 +105,7 @@ async function selectStep(number) {
 
   if (step.missingEnv.length) {
     setComposerEnabled(false);
-    addNotice("warn", `Este paso necesita ${step.missingEnv.join(", ")}. Rellena el fichero .env y reinicia la web.`);
+    addNotice("warn", t("step.missingEnv", { vars: step.missingEnv.join(", ") }));
     return;
   }
   if (number === 6) {
@@ -119,7 +118,7 @@ async function selectStep(number) {
 
 async function startRun(selection, resumeSessionId) {
   setComposerEnabled(false);
-  setSession("arrancando el runtime…");
+  setSession(t("session.starting"));
   try {
     const run = await post("/api/runs", { step: state.step.number, resumeSessionId });
     if (selection !== state.selection) return;
@@ -130,7 +129,7 @@ async function startRun(selection, resumeSessionId) {
     $("#input").focus({ preventScroll: true });
   } catch (error) {
     if (selection !== state.selection) return;
-    setSession("sin sesión");
+    setSession(t("session.none"));
     addNotice("error", error.message);
   }
 }
@@ -155,7 +154,7 @@ function connectEvents(runId) {
 async function offerSavedSessions(selection) {
   const card = document.createElement("div");
   card.className = "saved enter";
-  card.innerHTML = `<h3>Sesiones guardadas</h3><p class="saved-hint">ResumeSessionAsync recupera la conversación desde disco.</p><div class="saved-list">Consultando ListSessionsAsync…</div>`;
+  card.innerHTML = `<h3>${t("saved.title")}</h3><p class="saved-hint">${t("saved.hint")}</p><div class="saved-list">${t("saved.loading")}</div>`;
   $("#feed").append(card);
 
   let saved = [];
@@ -167,8 +166,8 @@ async function offerSavedSessions(selection) {
   list.innerHTML = saved.map((s) => `
     <button class="saved-item" data-id="${escapeHtml(s.id)}">
       <b>${escapeHtml(s.summary || s.id)}</b>
-      <small>${escapeHtml(s.id)} · ${new Date(s.modified).toLocaleString("es-ES")}</small>
-    </button>`).join("") + `<button class="saved-item saved-new" data-new="1"><b>Nueva sesión</b><small>Empieza una conversación con un SessionId propio</small></button>`;
+      <small>${escapeHtml(s.id)} · ${new Date(s.modified).toLocaleString(locale())}</small>
+    </button>`).join("") + `<button class="saved-item saved-new" data-new="1"><b>${t("saved.new")}</b><small>${t("saved.newHint")}</small></button>`;
 
   list.addEventListener("click", (e) => {
     const item = e.target.closest(".saved-item");
@@ -188,17 +187,17 @@ function handleEvent(event) {
     case "history": addHistory(event.role, event.text); break;
     case "tool-start": addTool(event); break;
     case "tool-end": finishTool(event); break;
-    case "skill": addEvent("skill", "star", `Skill cargada: <b>${escapeHtml(event.name)}</b>`, event.description); burst(); logActivity("skill", event.name, "Skill cargada bajo demanda"); break;
+    case "skill": addEvent("skill", "star", t("event.skill", { name: escapeHtml(event.name) }), event.description); burst(); logActivity("skill", event.name, t("activity.skill")); break;
     case "subagent-start": addBranch(event); break;
     case "subagent-end": endBranch(event); break;
     case "hook-blocked": hookBlocked(event); break;
-    case "audit": logActivity("audit", event.tool, `${event.agent === "main" ? "agente principal" : event.agent} · ${event.args}`, event.at); break;
+    case "audit": logActivity("audit", event.tool, `${event.agent === "main" ? t("activity.mainAgent") : event.agent} · ${event.args}`, event.at); break;
     case "approval-request": enqueueApproval(event); break;
     case "approval-resolved": approvalResolved(event); break;
     case "context": setGauge(event.current, event.limit); break;
     case "usage": if (event.model) $("#model").textContent = event.model; break;
-    case "compaction-start": addEvent("compaction", "wave", "Compactando el contexto en segundo plano…"); $("#gauge").classList.add("compacting"); break;
-    case "compaction-end": $("#gauge").classList.remove("compacting"); addEvent("compaction", "wave", `Contexto compactado: ${(event.before ?? 0).toLocaleString("es-ES")} → ${(event.after ?? 0).toLocaleString("es-ES")} tokens`); break;
+    case "compaction-start": addEvent("compaction", "wave", t("event.compacting")); $("#gauge").classList.add("compacting"); break;
+    case "compaction-end": $("#gauge").classList.remove("compacting"); addEvent("compaction", "wave", t("event.compacted", { before: (event.before ?? 0).toLocaleString(locale()), after: (event.after ?? 0).toLocaleString(locale()) })); break;
     case "warning": addNotice("warn", event.message); break;
     case "error": addNotice("error", event.message); break;
   }
@@ -282,7 +281,7 @@ function addTool(event) {
       <span class="tool-state"></span>
       ${icon(kind === "mcp" ? "plug" : kind === "custom" ? "bolt" : "file")}
       <span class="tool-name">${escapeHtml(event.name)}</span>
-      <span class="tool-kind">${kindLabels[kind]}</span>
+      <span class="tool-kind">${kindLabel(kind)}</span>
     </summary>
     <pre>${escapeHtml(event.args)}</pre>`;
 
@@ -311,11 +310,11 @@ function addBranch(event) {
   sealText();
   const branch = document.createElement("div");
   branch.className = "branch enter";
-  branch.innerHTML = `<div class="branch-head">${icon("branch")}<span>Sub-agente · <b>${escapeHtml(event.name)}</b></span><i class="branch-state"></i></div><div class="branch-body"></div>`;
+  branch.innerHTML = `<div class="branch-head">${icon("branch")}<span>${t("branch.label")} · <b>${escapeHtml(event.name)}</b></span><i class="branch-state"></i></div><div class="branch-body"></div>`;
   state.turn.body.append(branch);
   state.branch = branch.querySelector(".branch-body");
   state.branches.set(event.id, branch);
-  logActivity("agent", event.name, "Sub-agente iniciado");
+  logActivity("agent", event.name, t("activity.subagentStart"));
   scrollFeed();
 }
 
@@ -323,7 +322,7 @@ function endBranch(event) {
   const branch = state.branches.get(event.id);
   branch?.classList.add("closed");
   state.branch = null;
-  logActivity("agent", event.name, `Terminado · ${event.tools ?? 0} herramientas`);
+  logActivity("agent", event.name, t("activity.subagentEnd", { n: event.tools ?? 0 }));
 }
 
 function addEvent(kind, iconName, html, description) {
@@ -345,17 +344,18 @@ function burst() {
 }
 
 function hookBlocked(event) {
-  const message = event.target === "prompt" ? "Prompt bloqueado por OnUserPromptSubmitted" : `Bloqueado por OnPreToolUse: ${event.target}`;
+  const message = event.target === "prompt" ? t("blocked.prompt") : t("blocked.tool", { target: event.target });
+  const reason = fromServer(event.reason);
   clearWelcome();
   const line = document.createElement("div");
   line.className = "blocked enter";
-  line.innerHTML = `${icon("shield")}<div><b>${escapeHtml(message)}</b><small>${escapeHtml(event.reason)}</small></div>`;
+  line.innerHTML = `${icon("shield")}<div><b>${escapeHtml(message)}</b><small>${escapeHtml(reason)}</small></div>`;
   (state.turn?.body ?? $("#feed")).append(line);
   sealText();
 
   replay($("#flash"), "fire");
   replay($(".chat"), "shake");
-  logActivity("denied", event.target, event.reason);
+  logActivity("denied", event.target, reason);
   scrollFeed();
 }
 
@@ -372,7 +372,7 @@ function addHistory(role, text) {
   if (!$("#feed .history-mark")) {
     const mark = document.createElement("div");
     mark.className = "history-mark enter";
-    mark.textContent = "Conversación recuperada con ResumeSessionAsync";
+    mark.textContent = t("history.mark");
     $("#feed").append(mark);
   }
   addBubble(role === "user" ? "user" : "assistant", role === "user" ? escapeHtml(text) : renderMarkdown(text));
@@ -396,7 +396,7 @@ function scrollFeed(force) {
 
 function enqueueApproval(request) {
   state.approvals.push(request);
-  logActivity("approval", approvalLabels[request.kind], request.question);
+  logActivity("approval", approvalLabel(request.kind), fromServer(request.question));
   if (state.approvals.length === 1) showApproval();
 }
 
@@ -409,8 +409,8 @@ function showApproval() {
   }
 
   dialog.dataset.kind = request.kind;
-  $("#approval-kind").textContent = approvalLabels[request.kind];
-  $("#approval-question").textContent = request.question;
+  $("#approval-kind").textContent = approvalLabel(request.kind);
+  $("#approval-question").textContent = fromServer(request.question);
   $("#approval-detail").innerHTML = renderApprovalDetail(request);
 
   const timer = $("#approval-timer");
@@ -429,11 +429,11 @@ function renderApprovalDetail(request) {
       const trade = JSON.parse(request.detail);
       const estimate = state.prices?.[String(trade.symbol).toUpperCase()];
       return `<div class="ticket ${trade.action === "sell" ? "sell" : "buy"}">
-        <span class="ticket-action">${trade.action === "sell" ? "VENDER" : "COMPRAR"}</span>
+        <span class="ticket-action">${trade.action === "sell" ? t("approval.sell") : t("approval.buy")}</span>
         <span class="ticket-qty">${Number(trade.quantity)}</span>
         <span class="ticket-symbol">${escapeHtml(trade.symbol)}</span>
         ${estimate ? `<span class="ticket-total">≈ ${money(estimate * trade.quantity)}</span>` : ""}
-      </div><p class="approval-note">Operación simulada: no se envía a ningún bróker.</p>`;
+      </div><p class="approval-note">${t("approval.simulated")}</p>`;
     } catch { /* falls through to the raw view */ }
   }
   if (request.kind === "write") {
@@ -453,7 +453,7 @@ async function answerApproval(approved) {
   if (!request || !state.run) return;
   state.approvals.shift();
   showApproval();
-  logActivity(approved ? "approved" : "rejected", approvalLabels[request.kind], approved ? "Aprobado por el presentador" : "Rechazado por el presentador");
+  logActivity(approved ? "approved" : "rejected", approvalLabel(request.kind), approved ? t("approval.approved") : t("approval.rejected"));
   await post(`/api/runs/${state.run.id}/approvals/${request.id}`, { approved }).catch(() => {});
 }
 
@@ -461,7 +461,7 @@ function approvalResolved(event) {
   const index = state.approvals.findIndex((a) => a.id === event.id);
   if (index < 0) return;
   state.approvals.splice(index, 1);
-  logActivity("rejected", "Aprobación", "Sin respuesta: se rechaza por defecto");
+  logActivity("rejected", t("approval.title"), t("approval.timeout"));
   if (index === 0) showApproval();
 }
 
@@ -471,16 +471,16 @@ function renderConcept(step) {
   const lit = activeLayers[step.number];
   $("#panel-concept").innerHTML = `
     <p class="lead">${escapeHtml(step.concept)}</p>
-    <div class="stack" aria-label="Capas activas en este paso">
-      ${layers.map((name, i) => `<span class="layer ${lit.includes(i) ? "on" : ""}" style="--i:${i}">${name}</span>`).join("")}
+    <div class="stack" aria-label="${t("aria.layers")}">
+      ${t("layers").map((name, i) => `<span class="layer ${lit.includes(i) ? "on" : ""}" style="--i:${i}">${name}</span>`).join("")}
     </div>
-    <h3>Por qué importa</h3>
+    <h3>${t("concept.why")}</h3>
     <p>${escapeHtml(step.whyItMatters)}</p>
-    <h3>Fíjate en</h3>
+    <h3>${t("concept.watch")}</h3>
     <ul class="watch">${step.watchFor.map((item, i) => `<li style="--i:${i}">${escapeHtml(item)}</li>`).join("")}</ul>
-    <h3>APIs</h3>
+    <h3>${t("concept.apis")}</h3>
     <div class="apis">${step.apis.map((api, i) => `<code style="--i:${i}">${escapeHtml(api)}</code>`).join("")}</div>
-    <div class="production"><b>Antes de producción</b><p>${escapeHtml(step.production)}</p></div>`;
+    <div class="production"><b>${t("concept.production")}</b><p>${escapeHtml(step.production)}</p></div>`;
 }
 
 function highlightCSharp(source) {
@@ -499,10 +499,10 @@ function highlightCSharp(source) {
 
 function renderCode(step) {
   $("#panel-code").innerHTML = step.source
-    ? `<p class="panel-intro">El fichero real que ejecuta este paso.${step.source.includes("config.") ? ' En <span class="d">magenta</span>, lo que añade a la configuración.' : ""}</p>
+    ? `<p class="panel-intro">${t("code.intro")}${step.source.includes("config.") ? t("code.config") : ""}</p>
        <div class="code-file">src/FinanceClaw/Steps/${escapeHtml(step.sourceFile)}</div>
        <pre class="code"><code>${highlightCSharp(step.source)}</code></pre>`
-    : `<p class="panel-intro">El código fuente no está disponible en esta instalación.</p>`;
+    : `<p class="panel-intro">${t("code.missing")}</p>`;
 }
 
 function renderPrompts(step) {
@@ -516,7 +516,7 @@ function renderWelcome(step) {
       <div class="welcome-num" data-text="${String(step.number).padStart(2, "0")}">${String(step.number).padStart(2, "0")}</div>
       <h2>${escapeHtml(step.title)}</h2>
       <p>${escapeHtml(step.tagline)}</p>
-      <small>Elige una sugerencia o escribe tu pregunta. Teclas 1–8 para cambiar de paso.</small>
+      <small>${t("welcome.hint")}</small>
     </div>`;
 }
 
@@ -531,10 +531,10 @@ async function loadPortfolio() {
   const previous = $("#panel-portfolio .total-value");
   if (!previous) {
     $("#panel-portfolio").innerHTML = `
-      <p class="panel-intro">Lo que hay en <code>workspace/portfolio.csv</code> con precios simulados.</p>
+      <p class="panel-intro">${t("portfolio.intro")}</p>
       <div class="totals">
-        <div><small>Valor total</small><strong class="total-value"></strong></div>
-        <div><small>Ganancia latente</small><strong class="total-pnl ${pnl >= 0 ? "up" : "down"}"></strong></div>
+        <div><small>${t("portfolio.total")}</small><strong class="total-value"></strong></div>
+        <div><small>${t("portfolio.pnl")}</small><strong class="total-pnl ${pnl >= 0 ? "up" : "down"}"></strong></div>
       </div>
       <ul class="positions">${ordered.map((p, i) => {
         const weight = (p.value / data.totalValue) * 100;
@@ -559,7 +559,7 @@ async function loadPortfolio() {
 function logActivity(kind, title, detail, at) {
   const item = document.createElement("li");
   item.className = `activity-item ${kind} enter`;
-  const time = (at ? new Date(at) : new Date()).toLocaleTimeString("es-ES");
+  const time = (at ? new Date(at) : new Date()).toLocaleTimeString(locale());
   item.innerHTML = `<div><b>${escapeHtml(title)}</b><time>${time}</time></div><small>${escapeHtml(detail)}</small>`;
   $("#activity").prepend(item);
   while ($("#activity").children.length > 120) $("#activity").lastElementChild.remove();
@@ -660,7 +660,7 @@ $("#approval").addEventListener("cancel", (e) => e.preventDefault());
 document.addEventListener("keydown", (e) => {
   if ($("#approval").open) {
     const key = e.key.toLowerCase();
-    if (key === "s") { e.preventDefault(); answerApproval(true); }
+    if (key === "s" || key === "y") { e.preventDefault(); answerApproval(true); }
     else if (key === "n") { e.preventDefault(); answerApproval(false); }
     return;
   }
@@ -669,8 +669,50 @@ document.addEventListener("keydown", (e) => {
   if (/^[1-8]$/.test(e.key)) { e.preventDefault(); selectStep(Number(e.key)); }
 });
 
+/* ---------- language ---------- */
+
+function renderStepHeader(step) {
+  $("#chat-step").textContent = t("step", { n: String(step.number).padStart(2, "0") });
+  $("#chat-title").textContent = step.title;
+}
+
+const loadSteps = () => api(`/api/steps?lang=${lang}`);
+
+// Re-renders the interface in place: the running session, the conversation and the activity log stay as they are.
+async function setLanguage(next) {
+  if (next === lang) return;
+  storeLanguage(next);
+  applyStaticTexts();
+  state.steps = await loadSteps();
+  renderRail();
+
+  const step = state.steps.find((s) => s.number === state.step?.number);
+  if (step) {
+    state.step = step;
+    renderStepHeader(step);
+    renderConcept(step);
+    renderCode(step);
+    renderPrompts(step);
+    document.querySelectorAll("#prompts button").forEach((b) => { b.disabled = $("#send").disabled; });
+    if ($("#feed .welcome")) renderWelcome(step);
+  }
+  if (state.approvals.length) showApproval();
+  $("#panel-portfolio").innerHTML = "";
+  await loadPortfolio();
+}
+
+$("#rail").addEventListener("click", (e) => {
+  const button = e.target.closest("button[data-step]");
+  if (button) selectStep(Number(button.dataset.step));
+});
+document.querySelector(".lang-switch").addEventListener("click", (e) => {
+  const button = e.target.closest("button[data-lang]");
+  if (button) setLanguage(button.dataset.lang);
+});
+
 (async function init() {
-  state.steps = await api("/api/steps");
+  applyStaticTexts();
+  state.steps = await loadSteps();
   renderRail();
   await loadPortfolio();
   const fromHash = Number(location.hash.slice(1));

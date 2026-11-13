@@ -79,7 +79,7 @@ La misma demo, en el navegador y con estética neón. Cada paso usa exactamente 
 dotnet run --project src/FinanceClaw.Web
 ```
 
-Abre http://localhost:5199. Las teclas `1`–`8` cambian de paso, y `S` / `N` responden a las aprobaciones.
+Abre http://localhost:5199. Las teclas `1`–`8` cambian de paso, y `S` / `N` responden a las aprobaciones (`Y` / `N` en inglés). El selector `ES | EN` de la cabecera cambia el idioma de la interfaz sin cortar la sesión y el navegador lo recuerda.
 
 - **Conversación en directo:** texto en streaming y herramientas por colores (tu código, integradas, MCP), skills y sub-agentes.
 - **Aprobaciones en un diálogo:** ticket de operación, comando o diff del fichero. Sin respuesta en 5 minutos se rechaza.
