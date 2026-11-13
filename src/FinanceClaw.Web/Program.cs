@@ -29,7 +29,11 @@ app.Use(async (context, next) =>
 });
 
 app.UseDefaultFiles();
-app.UseStaticFiles();
+// Revalidate on every load (a cheap 304 when nothing changed), so a browser never mixes new HTML with an old app.js.
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache",
+});
 
 app.MapGet("/api/steps", (string? lang) => StepCatalog.For(lang).Select(StepCatalog.ToClient));
 
